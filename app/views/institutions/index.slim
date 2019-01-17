@@ -1,6 +1,17 @@
 .my-4
 h4.text-center Institutions (#{@institutions.count})
 .my-4
+div#search_fields
+  = form_tag root_path, id: 'institutions_search_form', method: :get do |f|
+    .row.justify-content-center
+      .col-4
+        .input-group.mb-3
+          = search_field_tag :search, params[:search], placeholder: 'Institution name or alias', class: 'form-control', autocomplete: 'off'
+          .input-group-append
+            button.btn.btn-outline-secondary[type="submit"]
+              | Search
+
+hr
 table.table.table-sm.table-hover.table-bordered
   thead.thead-light
     tr
