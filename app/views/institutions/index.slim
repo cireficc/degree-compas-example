@@ -1,10 +1,31 @@
+- hlo = Institution::HIGHEST_LEVEL_OF_OFFERING
+- du = Institution::DEGREE_OF_URBANIZATION
+- size = Institution::SIZE_CATEGORY
+- states = Institution.all.collect(&:address_state).uniq.sort
 .my-4
 h4.text-center Institutions (#{@institutions.count})
 .my-4
 div#search_fields
   = form_tag root_path, id: 'institutions_search_form', method: :get do |f|
     .row.justify-content-center
+      .col-2
+        = label_tag :state, 'State'
+        = select_tag :state,
+                options_for_select(states.map {|k, v| [k, k]}, params[:state]),
+                {class: 'form-control', include_blank: true}
+      .col-2
+        = label_tag :highest_level_of_offering, 'Highest level of offering'
+        = select_tag :highest_level_of_offering,
+                options_for_select(hlo.map {|k, v| [k, v]}, params[:highest_level_of_offering]),
+                {class: 'form-control', include_blank: true}
+      .col-2
+        = label_tag :size_category, 'Size category'
+        = select_tag :size_category,
+                options_for_select(size.map {|k, v| [k, v]}, params[:size_category]),
+                {class: 'form-control', include_blank: true}
+    .row.justify-content-center
       .col-4
+        = label_tag :search, 'Keyword'
         .input-group.mb-3
           = search_field_tag :search, params[:search], placeholder: 'Institution name or alias', class: 'form-control', autocomplete: 'off'
           .input-group-append
@@ -20,8 +41,6 @@ table.table.table-sm.table-hover.table-bordered
       th Website
       th Admissions
       th Application
-      th BEA region
-      th Sector
       th Highest level of offering
       th Degree of urbanization
       th Size
@@ -39,9 +58,7 @@ table.table.table-sm.table-hover.table-bordered
         td
           - if institution.application_website
             = link_to('applications', "http://#{institution.application_website}", target: :_blank)
-        td #{institution.bea_region}
-        td #{institution.sector}
-        td #{institution.highest_level_of_offering}
-        td #{institution.degree_of_urbanization}
-        td #{institution.size_category}
+        td #{hlo.key(institution.highest_level_of_offering)}
+        td #{du.key(institution.degree_of_urbanization)}
+        td #{size.key(institution.size_category)}
         
