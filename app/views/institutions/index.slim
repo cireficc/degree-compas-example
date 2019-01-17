@@ -1,0 +1,36 @@
+.my-4
+h4.text-center Institutions (#{@institutions.count})
+.my-4
+table.table.table-sm.table-hover.table-bordered
+  thead.thead-light
+    tr
+      th Name
+      th Location
+      th Website
+      th Admissions
+      th Application
+      th BEA region
+      th Sector
+      th Highest level of offering
+      th Degree of urbanization
+      th Size
+  tbody
+    - @institutions.each do |institution|
+      tr
+        td #{institution.name}
+        td #{institution.address_city}, #{institution.address_state}
+        td
+          - if institution.website
+            = link_to('home page', "http://#{institution.website}", target: :_blank)
+        td
+          - if institution.admissions_website
+            = link_to('admissions', "http://#{institution.admissions_website}", target: :_blank)
+        td
+          - if institution.application_website
+            = link_to('applications', "http://#{institution.application_website}", target: :_blank)
+        td #{institution.bea_region}
+        td #{institution.sector}
+        td #{institution.highest_level_of_offering}
+        td #{institution.degree_of_urbanization}
+        td #{institution.size_category}
+        
