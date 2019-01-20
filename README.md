@@ -124,3 +124,261 @@ since we only have one CSV file, we can use the manual process and not waste tim
 
 Now the database table for `institutions` is set up properly and the data is imported. Now we can get to writing some
 Rails code!
+
+### Adding dependencies
+
+
+
+In any coding project, it's generally a good idea to use libraries/frameworks that people have already developed, instead
+of writing everything from scratch yourself. Some dependencies make accomplishing tasks (like text search) much simpler, 
+some dependencies make writing code less frustrating.
+
+#### Gems
+
+In this app we're going to keep it simple and just use `pg_search` (PostgreSQL full text search) and `slim`
+(an HTML pre-processor that makes writing HTML less of a headache). In Rails, you add dependencies called *gems* to your
+**Gemfile**, which basically lists out all of the libraries you're using, and what *versions* you're using. Let's add
+`pg_search` and [`slim`](http://slim-lang.com) to our Gemfile:
+
+```ruby
+gem 'pg_search', '~> 2.1'
+gem 'slim-rails', '~> 3.2.0'
+```
+
+Then we run `bundle install` to install the dependencies so they're ready to use. When you add a dependency, you need
+to restart your Rails app.
+
+#### CSS/JS libraries
+
+Since Slim is now installed, let's convert our `application.html.erb` file to Slim format,
+and add the Bootstrap v4 CSS/JS libraries:
+
+```ruby
+doctype html
+html lang="en"
+  head
+    meta(charset="utf-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    script(src="https://code.jquery.com/jquery-3.3.1.min.js" crossorigin="anonymous" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=")
+    script(src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.bundle.min.js" crossorigin="anonymous" integrity="sha384-feJI7QwhOS+hwpX2zkaeJQjeiwlhOP+SdQDqhgvvo1DsjtiSQByFdThsxO669S2D")
+    link(href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm")
+    = stylesheet_link_tag('application', media: 'all', 'data-turbolinks-track': true)
+    = javascript_include_tag('application', 'data-turbolinks-track': true)
+    = csrf_meta_tags
+    title Degree Compass
+  body
+    .container-fluid
+      div#content
+        == yield
+```
+
+Slim makes writing HTML a lot less of a hassle. It's easier to read and faster to type. Just compare it to the original
+ERB file.
+
+### Let's get developing
+
+#### Listing basic information about institutions
+
+First thing's first, let's generate a *controller* to handle working with institutions:
+
+`rails g controller institutions`
+
+Remember that controller names should be plural! This will generate some files, most of which we don't care about right
+now. Let's create the `#index` action (to list/search institutions), and make that the home page. Open **routes.rb** and
+add this line:
+
+`root 'institutions#index'`
+
+Now let's open up **institutions_controller.rb** and create the `#index` method:
+
+```ruby
+def index
+    @institutions = Institution.all.limit(10)
+end
+```
+
+We're gonna limit the institutions to 10 for the moment while we build things out.
+
+Now create a file called **index.slim** under **views/institutions**, and add the following:
+
+```ruby
+.my-4
+h4.text-center Institutions (#{@institutions.count})
+.my-4
+table.table.table-sm.table-hover.table-bordered style="table-layout: fixed"
+  thead.thead-light
+    tr
+      th Name
+      th Aliases
+      th Location
+      th Website
+      th Admissions
+      th Application
+      th Highest level of offering
+      th Size
+  tbody
+    - @institutions.each do |institution|
+      tr
+        td #{institution.name}
+        - aliases = institution.alias ? institution.alias.split('|') : []
+        td
+          ul
+            - aliases.each do |al|
+              li #{al}
+        td #{institution.address_city}, #{institution.address_state}
+        td
+          - if institution.website
+            = link_to('home page', "http://#{institution.website}", target: :_blank)
+        td
+          - if institution.admissions_website
+            = link_to('admissions', "http://#{institution.admissions_website}", target: :_blank)
+        td
+          - if institution.application_website
+            = link_to('applications', "http://#{institution.application_website}", target: :_blank)
+        td #{institution.highest_level_of_offering}
+        td #{institution.size_category}
+```
+
+This will create an HTML table that lists some basic information about the institutions.
+
+#### Adding search functionality
+
+Now let's add some search functionality to the index. Open up **institution.rb** and add the following, which will enable
+full-text search using `pg_Search`:
+
+```ruby
+include PgSearch
+pg_search_scope :search_by_keyword, against: [:name, :alias]
+```
+
+This will allow us to do a keyword search on the `name` and `alias` columns of the institution.
+
+Open up our **institutions_controller.rb** and add the following to the `index method`:
+```ruby
+keyword = params[:search]
+@institutions = Institution.search_by_keyword(keyword).reorder(name: :asc).limit(25)
+```
+
+And finally, we need to add the actual keyword search field to the index page:
+
+```ruby
+div#search_fields
+  = form_tag root_path, id: 'institutions_search_form', method: :get do |f|
+    .row.justify-content-center
+      .col-4
+        .input-group.mb-3
+          = search_field_tag :search, params[:search], placeholder: 'Institution name or alias', class: 'form-control', autocomplete: 'off'
+          .input-group-append
+            button.btn.btn-outline-secondary[type="submit"]
+              | Search
+
+hr
+```
+
+Now you can search institutions by name or alias!
+
+#### Expanding search criteria
+
+First, we want to map the numbers for `highest_level_of_offering`, `degree_of_urbanization`, and `size_category` to their
+*meaning*, so let's set that up in our model:
+
+```ruby
+HIGHEST_LEVEL_OF_OFFERING = {
+    'Not available': -3,
+    'Not applicable, 1st professional only': -1,
+    'Other': 0,
+    'Postsecondary award, certificate or diploma of less than one academic year': 1,
+    'Postsecondary award, certificate or diploma of at least one but less than two academic years': 2,
+    'Associate’s degree': 3,
+    'Postsecondary award, certificate or diploma of at least two but less than four academic years': 4,
+    'Bachelor’s degree': 5,
+    'Postbaccalaureate certificate': 6,
+    'Master’s degree': 7,
+    'Post-Master’s certificate': 8,
+    'Doctor’s degree': 9
+}
+
+DEGREE_OF_URBANIZATION = {
+    'Not available': -3,
+    'City: Large: Territory inside an urbanized area and inside a principal city with population of 250,000 or more': 11,
+    'City: Midsize: Territory inside an urbanized area and inside a principal city with population less than 250,000 and greater than or equal to 100,000': 12,
+    'City: Small: Territory inside an urbanized area and inside a principal city with population less than 100,000': 13,
+    'Suburb: Large: Territory outside a principal city and inside an urbanized area with population of 250,000 or more': 21,
+    'Suburb: Midsize: Territory outside a principal city and inside an urbanized area with population less than 250,000 and greater than or equal to 100,000': 22,
+    'Suburb: Small: Territory outside a principal city and inside an urbanized area with population less than 100,000': 23,
+    'Town: Fringe: Territory inside an urban cluster that is less than or equal to 10 miles from an urbanized area': 31,
+    'Town: Distant: Territory inside an urban cluster that is more than 10 miles and less than or equal to 35 miles from an urbanized area': 32,
+    'Town: Remote: Territory inside an urban cluster that is more than 35 miles of an urbanized area': 33,
+    'Rural: Fringe: Census-defined rural territory that is less than or equal to 5 miles from an urbanized area, as well as rural territory that is less than or equal to 2.5 miles from an urban cluster': 41,
+    'Rural: Distant: Census-defined rural territory that is more than 5 miles but less than or equal to 25 miles from an urbanized area, as well as rural': 42,
+    'Rural: Remote: Census-defined rural territory that is more than 25 miles from an urbanized area and is also more than 10 miles from an urban cluster': 43
+}
+
+SIZE_CATEGORY = {
+    'Not Reported': -1,
+    'Not applicable': -2,
+    'Under 1,000': 1,
+    '1,000 - 4,999': 2,
+    '5,000 - 9,999': 3,
+    '10,000 - 19,999': 4,
+    '20,000 and above': 5
+}
+```
+
+Now let's add some more search criteria to make it a bit more interesting. We're going to allow searching by state,
+highest level of offering, and size category. First, we need to make some adjustments to our search form in **index.slim**.
+Adjust the search form to the following:
+
+```ruby
+- hlo = Institution::HIGHEST_LEVEL_OF_OFFERING
+- size = Institution::SIZE_CATEGORY
+- states = Institution.all.collect(&:address_state).uniq.sort
+div#search_fields
+  = form_tag root_path, id: 'institutions_search_form', method: :get do |f|
+    .row.justify-content-center
+      .col-2
+        = label_tag :state, 'State'
+        = select_tag :state,
+                options_for_select(states.map {|k, v| [k, k]}, params[:state]),
+                {class: 'form-control', include_blank: true}
+      .col-2
+        = label_tag :highest_level_of_offering, 'Highest level of offering'
+        = select_tag :highest_level_of_offering,
+                options_for_select(hlo.map {|k, v| [k, v]}, params[:highest_level_of_offering]),
+                {class: 'form-control', include_blank: true}
+      .col-2
+        = label_tag :size_category, 'Size category'
+        = select_tag :size_category,
+                options_for_select(size.map {|k, v| [k, v]}, params[:size_category]),
+                {class: 'form-control', include_blank: true}
+    .row.justify-content-center
+      .col-4
+        = label_tag :search, 'Keyword'
+        .input-group.mb-3
+          = search_field_tag :search, params[:search], placeholder: 'Institution name or alias', class: 'form-control', autocomplete: 'off'
+          .input-group-append
+```
+
+Let's adjust our controller as well to take these new search criteria into account:
+
+```ruby
+state = params[:state]
+hlo = params[:highest_level_of_offering]
+size_category = params[:size_category]
+@institutions = keyword.present? ? Institution.search_by_keyword(keyword) : Institution.all
+@institutions = @institutions.where(address_state: state) if state.present?
+@institutions = @institutions.where("highest_level_of_offering >= ?", hlo) if hlo.present?
+@institutions = @institutions.where("size_category >= ?", size_category) if size_category.present?
+@institutions = @institutions.reorder(Arel.sql('LOWER(name)'))
+```
+
+The above code will first search by keyword (if the keyword parameter is present), and will selectively filter down results
+based on the other search criteria (if they are also present). At the end, we reorder the results based on alphabetical
+order.
+
+We can also adjust **index.slim** to use these text-to-number mappings in the HTML table:
+
+```ruby
+td #{hlo.key(institution.highest_level_of_offering)}
+td #{size.key(institution.size_category)}
+```
