@@ -1,4 +1,5 @@
 class InstitutionsController < ApplicationController
+	before_action :set_institution, only: [:show]
 	
 	def index
 		keyword = params[:search]
@@ -10,5 +11,14 @@ class InstitutionsController < ApplicationController
 		@institutions = @institutions.where("highest_level_of_offering >= ?", hlo) if hlo.present?
 		@institutions = @institutions.where("size_category >= ?", size_category) if size_category.present?
 		@institutions = @institutions.reorder(Arel.sql('LOWER(name)'))
+	end
+	
+	def show
+	end
+	
+	private
+	
+	def set_institution
+		@institution = Institution.find(params[:id])
 	end
 end

@@ -46,7 +46,8 @@ table.table.table-sm.table-hover.table-bordered style="table-layout: fixed"
   tbody
     - @institutions.each do |institution|
       tr
-        td #{institution.name}
+        td
+          = link_to(institution.name, institution_path(institution))
         - aliases = institution.alias ? institution.alias.split('|') : []
         td
           ul

@@ -1,0 +1,37 @@
+.my-4
+button onclick='history.back();' class= 'btn btn-primary' Back to institutions
+h4.text-center Showing #{@institution.name}
+.my-4
+.row
+  .col-6
+    - if @institution.website
+      h5
+        = link_to('Home page', "http://#{@institution.website}", target: :_blank)
+      - if @institution.admissions_website
+        h5
+          = link_to('Admissions', "http://#{@institution.admissions_website}", target: :_blank)
+      - if @institution.application_website
+        h5
+          = link_to('Application', "http://#{@institution.application_website}", target: :_blank)
+    h5 Address
+    = render partial: 'partials/address', locals: {address_street: @institution.address_street,
+            address_city: @institution.address_city, address_state: @institution.address_state,
+            address_zip: @institution.address_zip}
+    h5 Coordinates
+    p #{@institution.latitude}/#{@institution.longitude}
+    - aliases = @institution.alias ? @institution.alias.split('|') : []
+    h5 #{pluralize(aliases.count, 'alias')}
+    ul
+      - aliases.each do |al|
+        li #{al}
+  .col-6
+    h5 BEA region
+    p #{@institution.bea_region}
+    h5 Sector
+    p #{@institution.sector}
+    h5 Highest level of offering
+    p #{Institution::HIGHEST_LEVEL_OF_OFFERING.key(@institution.highest_level_of_offering)}
+    h5 Degree of urbanization
+    p #{Institution::DEGREE_OF_URBANIZATION.key(@institution.degree_of_urbanization)}
+    h5 Size category
+    p #{Institution::SIZE_CATEGORY.key(@institution.size_category)}

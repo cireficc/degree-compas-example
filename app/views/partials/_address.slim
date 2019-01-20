@@ -1,0 +1,7 @@
+- if address_street
+  address
+    | #{address_street}
+    br
+    | #{address_city}, #{address_state} #{address_zip}
+- else
+  p No address available
