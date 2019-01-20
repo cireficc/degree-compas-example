@@ -1,5 +1,4 @@
 - hlo = Institution::HIGHEST_LEVEL_OF_OFFERING
-- du = Institution::DEGREE_OF_URBANIZATION
 - size = Institution::SIZE_CATEGORY
 - states = Institution.all.collect(&:address_state).uniq.sort
 .my-4
@@ -33,21 +32,26 @@ div#search_fields
               | Search
 
 hr
-table.table.table-sm.table-hover.table-bordered
+table.table.table-sm.table-hover.table-bordered style="table-layout: fixed"
   thead.thead-light
     tr
       th Name
+      th Aliases
       th Location
       th Website
       th Admissions
       th Application
       th Highest level of offering
-      th Degree of urbanization
       th Size
   tbody
     - @institutions.each do |institution|
       tr
         td #{institution.name}
+        - aliases = institution.alias ? institution.alias.split('|') : []
+        td
+          ul
+            - aliases.each do |al|
+              li #{al}
         td #{institution.address_city}, #{institution.address_state}
         td
           - if institution.website
@@ -59,6 +63,5 @@ table.table.table-sm.table-hover.table-bordered
           - if institution.application_website
             = link_to('applications', "http://#{institution.application_website}", target: :_blank)
         td #{hlo.key(institution.highest_level_of_offering)}
-        td #{du.key(institution.degree_of_urbanization)}
         td #{size.key(institution.size_category)}
         
